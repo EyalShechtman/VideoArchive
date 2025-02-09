@@ -8,6 +8,7 @@ interface VideoMetadata {
   title: string;
   description: string;
   tags: string;
+  school: string;
 }
 
 export default function VideoUploader() {
@@ -15,6 +16,7 @@ export default function VideoUploader() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [metadata, setMetadata] = useState<VideoMetadata>({
     title: '',
+    school: '',
     description: '',
     tags: ''
   });
@@ -56,6 +58,7 @@ export default function VideoUploader() {
     const formData = new FormData();
     formData.append('file', selectedFile);
     formData.append('title', metadata.title);
+    formData.append('school', metadata.school);
     formData.append('description', metadata.description);
     formData.append('tags', metadata.tags);
 
@@ -77,7 +80,8 @@ export default function VideoUploader() {
       setMetadata({
         title: '',
         description: '',
-        tags: ''
+        tags: '',
+        school: ''
       });
       
       // Redirect to home page
@@ -141,6 +145,18 @@ export default function VideoUploader() {
             required
           />
         </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">School</label>
+          <input
+            type="text"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            value={metadata.school}
+            onChange={(e) => setMetadata({ ...metadata, school: e.target.value })}
+            placeholder="nature, documentary, tutorial"
+          />
+        </div>
+
 
         <div>
           <label className="block text-sm font-medium text-gray-700">Tags (comma-separated)</label>
