@@ -1,0 +1,166 @@
+'use client';
+
+import { useState } from 'react';
+import { Upload } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+
+interface VideoMetadata {
+  title: string;
+  description: string;
+  tags: string;
+}
+
+export default function VideoUploader() {
+  const [isDragging, setIsDragging] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [metadata, setMetadata] = useState<VideoMetadata>({
+    title: '',
+    description: '',
+    tags: ''
+  });
+  const router = useRouter();
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setIsDragging(true);
+    } else if (e.type === 'dragleave') {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files[0]) {
+      handleFileSelect(files[0]);
+    }
+  };
+
+  const handleFileSelect = (file: File) => {
+    if (file.type.startsWith('video/')) {
+      setSelectedFile(file);
+    } else {
+      alert('Please upload a video file');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFile) return;
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('title', metadata.title);
+    formData.append('description', metadata.description);
+    formData.append('tags', metadata.tags);
+
+    try {
+      const response = await fetch('http://localhost:8000/api/videos/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const result = await response.json();
+      console.log('Upload successful:', result);
+      
+      // Clear the form
+      setSelectedFile(null);
+      setMetadata({
+        title: '',
+        description: '',
+        tags: ''
+      });
+      
+      // Redirect to home page
+      router.push('/');
+    } catch (error) {
+      console.error('Error uploading video:', error);
+      alert('Failed to upload video. Please try again.');
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-md p-6">
+      <h2 className="text-2xl font-semibold mb-4">Upload Video</h2>
+      
+      <div
+        className={`border-2 border-dashed rounded-lg p-8 text-center mb-4 ${
+          isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+        }`}
+        onDragEnter={handleDrag}
+        onDragLeave={handleDrag}
+        onDragOver={handleDrag}
+        onDrop={handleDrop}
+      >
+        <Upload className="mx-auto mb-4 text-gray-400" size={48} />
+        <p className="text-gray-600">
+          Drag and drop your video here, or{' '}
+          <label className="text-blue-500 cursor-pointer hover:text-blue-600">
+            browse
+            <input
+              type="file"
+              className="hidden"
+              accept="video/*"
+              onChange={(e) => e.target.files && handleFileSelect(e.target.files[0])}
+            />
+          </label>
+        </p>
+        {selectedFile && (
+          <p className="mt-2 text-sm text-gray-500">{selectedFile.name}</p>
+        )}
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Title</label>
+          <input
+            type="text"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            value={metadata.title}
+            onChange={(e) => setMetadata({ ...metadata, title: e.target.value })}
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Description</label>
+          <textarea
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            rows={3}
+            value={metadata.description}
+            onChange={(e) => setMetadata({ ...metadata, description: e.target.value })}
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Tags (comma-separated)</label>
+          <input
+            type="text"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            value={metadata.tags}
+            onChange={(e) => setMetadata({ ...metadata, tags: e.target.value })}
+            placeholder="nature, documentary, tutorial"
+          />
+        </div>
+
+        <button
+          type="submit"
+          className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition-colors"
+          disabled={!selectedFile}
+        >
+          Upload Video
+        </button>
+      </form>
+    </div>
+  );
+} 
