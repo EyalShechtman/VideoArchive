@@ -5,6 +5,7 @@ class VideoMetadata(BaseModel):
     title: str
     description: str
     tags: List[str]
+    school: str
 
 class Video(BaseModel):
     id: str

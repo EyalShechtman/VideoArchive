@@ -28,7 +28,8 @@ async def upload_video(
     file: UploadFile = File(...),
     title: str = Form(...),
     description: str = Form(...),
-    tags: str = Form(...)
+    tags: str = Form(...),
+    school: str = Form(...)
 ):
     # Create uploads directory if it doesn't exist
     os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -53,7 +54,8 @@ async def upload_video(
         "metadata": {
             "title": title,
             "description": description,
-            "tags": tags_list
+            "tags": tags_list,
+            "school": school
         }
     }
     
