@@ -44,13 +44,13 @@ export default function VideoUploader() {
   };
 
   const handleFileSelect = (file: File) => {
-    if (file.type.startsWith('video/')) {
+    if (file.type.startsWith('video/') || file.name.endsWith('.zip')) {  // ✅ Accept ZIP files
       setSelectedFile(file);
     } else {
-      alert('Please upload a video file');
+      alert('Please upload a video or ZIP file containing videos');
     }
   };
-
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile) return;
@@ -63,13 +63,15 @@ export default function VideoUploader() {
     formData.append('tags', metadata.tags);
 
     try {
+      console.log('Uploading file:', selectedFile.name, 'Type:', selectedFile.type);
       const response = await fetch('http://localhost:8000/api/videos/upload', {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error('Upload failed');
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Upload failed');
       }
 
       const result = await response.json();
@@ -88,7 +90,7 @@ export default function VideoUploader() {
       router.push('/');
     } catch (error) {
       console.error('Error uploading video:', error);
-      alert('Failed to upload video. Please try again.');
+      alert(error instanceof Error ? error.message : 'Failed to upload video. Please try again.');
     }
   };
 
@@ -107,19 +109,26 @@ export default function VideoUploader() {
       >
         <Upload className="mx-auto mb-4 text-gray-400" size={48} />
         <p className="text-gray-600">
-          Drag and drop your video here, or{' '}
+          Drag and drop your video or ZIP file here, or{' '}
           <label className="text-blue-500 cursor-pointer hover:text-blue-600">
             browse
             <input
               type="file"
               className="hidden"
-              accept="video/*"
+              accept="video/*,.zip"
               onChange={(e) => e.target.files && handleFileSelect(e.target.files[0])}
             />
           </label>
         </p>
         {selectedFile && (
-          <p className="mt-2 text-sm text-gray-500">{selectedFile.name}</p>
+          <div className="mt-2 text-sm">
+            <p className="text-gray-500">{selectedFile.name}</p>
+            <p className="text-gray-400">
+              {selectedFile.name.endsWith('.zip') 
+                ? 'ZIP file containing videos' 
+                : 'Video file'}
+            </p>
+          </div>
         )}
       </div>
 

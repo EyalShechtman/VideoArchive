@@ -11,6 +11,7 @@ interface Video {
     title: string;
     description: string;
     tags: string[];
+    school: string;
   };
 }
 
@@ -23,9 +24,10 @@ export default function Home() {
       try {
         const response = await fetch('http://localhost:8000/api/videos');
         const data = await response.json();
-        setVideos(data);
+        setVideos(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error('Error fetching videos:', error);
+        setVideos([]);
       }
     };
 
@@ -37,6 +39,7 @@ export default function Home() {
     return (
       video.metadata.title.toLowerCase().includes(searchLower) ||
       video.metadata.description.toLowerCase().includes(searchLower) ||
+      // video.metadata.school.toLowerCase().includes(searchLower) ||
       video.metadata.tags.some(tag => tag.toLowerCase().includes(searchLower))
     );
   });
@@ -65,10 +68,12 @@ export default function Home() {
                 className="w-full h-48 object-cover"
                 src={`http://localhost:8000/uploads/${video.filename}`}
                 controls
+                preload="metadata"
               />
               <div className="p-4">
                 <h3 className="text-xl font-semibold mb-2">{video.metadata.title}</h3>
                 <p className="text-gray-600 mb-2">{video.metadata.description}</p>
+                <p className="text-gray-500 mb-2">School: {video.metadata.school}</p>
                 <div className="flex flex-wrap gap-2">
                   {video.metadata.tags.map((tag, index) => (
                     <span 
