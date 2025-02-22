@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import SearchBar from '@/components/SearchBar';
+import { useRouter } from 'next/navigation';
 
 interface Video {
   id: string;
@@ -18,6 +19,14 @@ interface Video {
 export default function Home() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const router = useRouter();
+
+  useEffect(() => {
+    const user = localStorage.getItem('user');
+    if (!user) {
+      router.push('/login');
+    }
+  }, [router]);
 
   useEffect(() => {
     const fetchVideos = async () => {

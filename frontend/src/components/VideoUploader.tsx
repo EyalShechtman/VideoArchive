@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Upload } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import GoogleDrivePicker from './GoogleDrivePicker';
 
 interface VideoMetadata {
   title: string;
@@ -21,6 +22,12 @@ export default function VideoUploader() {
     tags: ''
   });
   const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const user = localStorage.getItem('user');
+    setIsAuthenticated(!!user);
+  }, []);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -94,10 +101,21 @@ export default function VideoUploader() {
     }
   };
 
+  const handleGoogleDriveSelect = async (file: any) => {
+    // Handle the selected file from Google Drive
+    setSelectedFile(file);
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <h2 className="text-2xl font-semibold mb-4">Upload Video</h2>
       
+      {isAuthenticated && (
+        <div className="mb-4">
+          <GoogleDrivePicker onFileSelect={handleGoogleDriveSelect} />
+        </div>
+      )}
+
       <div
         className={`border-2 border-dashed rounded-lg p-8 text-center mb-4 ${
           isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'

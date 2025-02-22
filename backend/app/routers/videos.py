@@ -146,9 +146,19 @@ async def upload_video(
         if os.path.exists(file_path):
             os.remove(file_path)
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+@router.post("/delete")
+async def delete_video(
+    video_id: str = Form(...)
+):
+    videos = load_metadata()
+    videos = [video for video in videos if video["id"] != video_id]
+    save_metadata(videos)
+    return {"message": "Video deleted successfully"}
 
 @router.get("")
 async def get_videos():
     videos = load_metadata()
-    print("Loaded videos:", videos)  # Debug print
+    print("Loaded videos:", videos)
     return videos if videos else []
