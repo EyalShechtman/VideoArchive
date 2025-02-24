@@ -6,6 +6,21 @@ import { useRouter } from 'next/navigation';
 export default function LoginPage() {
   const router = useRouter();
 
+  useEffect(() => {
+    // Check for password authentication first
+    const isAuthenticated = localStorage.getItem('password_authenticated');
+    if (!isAuthenticated) {
+      router.push('/');
+      return;
+    }
+
+    // Then check for Google auth
+    const user = localStorage.getItem('user');
+    if (user) {
+      router.push('/videos');
+    }
+  }, [router]);
+
   const handleGoogleLogin = async () => {
     try {
       const response = await fetch('http://localhost:8000/api/auth/google/url');
@@ -15,13 +30,6 @@ export default function LoginPage() {
       console.error('Error getting auth URL:', error);
     }
   };
-
-  useEffect(() => {
-    const user = localStorage.getItem('user');
-    if (user) {
-      router.push('/');
-    }
-  }, [router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
