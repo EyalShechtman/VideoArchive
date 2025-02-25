@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import FilterBar from '@/components/FilterBar';
 
 interface Video {
-  id: string;
+  _id: string;
   filename: string;
   metadata: {
     title: string;
@@ -104,7 +104,7 @@ export default function VideosPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredVideos.map((video) => (
-            <div key={video.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div key={video._id} className="bg-white rounded-lg shadow-md overflow-hidden">
               {!video.filename.endsWith('.zip') && (
                 <video 
                   className="w-full h-48 object-cover"
@@ -120,7 +120,7 @@ export default function VideosPage() {
                 <div className="flex flex-wrap gap-2">
                   {video.metadata.tags.map((tag, index) => (
                     <span 
-                      key={index}
+                      key={`${video._id}-${index}`}
                       className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-sm"
                     >
                       {tag}

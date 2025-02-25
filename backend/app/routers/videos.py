@@ -4,8 +4,10 @@ import zipfile  # ✅ Added to handle ZIP files
 import uuid
 import json
 from typing import List
-from ..models.video import VideoMetadata  # No change
+from ..models.video import VideoMetadata, Video  # No change
+from ..database import db
 import shutil  # Add this import at the top
+from bson import ObjectId
 
 router = APIRouter(prefix="/api/videos")
 
@@ -34,93 +36,67 @@ async def upload_video(
     tags: str = Form(...),
     school: str = Form(...)
 ):
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-    
-    print(f"Received file: {file.filename}, Content-Type: {file.content_type}")
-
-    file_extension = os.path.splitext(file.filename)[1].lower()
-    unique_filename = f"{uuid.uuid4()}{file_extension}"
-    file_path = os.path.join(UPLOAD_DIR, unique_filename)
-
-    with open(file_path, "wb") as buffer:
-        content = await file.read()
-        buffer.write(content)
-        print(f"Saved file to: {file_path}")
-
-    extracted_files = []
-
     try:
-        if file_extension == ".zip":
-            print(f"Processing ZIP file: {file_path}")
-            extract_folder = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}_extracted")
-            os.makedirs(extract_folder, exist_ok=True)
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        
+        print(f"Received file: {file.filename}, Content-Type: {file.content_type}")
 
+        file_extension = os.path.splitext(file.filename)[1].lower()
+        unique_filename = f"{uuid.uuid4()}{file_extension}"
+        file_path = os.path.join(UPLOAD_DIR, unique_filename)
+        uploaded_files = []
+
+        # Save the uploaded file
+        with open(file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+
+        tags_list = [tag.strip() for tag in tags.split(',') if tag.strip()]
+        videos_to_save = []
+
+        if file_extension == ".zip":
             try:
+                extract_folder = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}_extracted")
+                os.makedirs(extract_folder, exist_ok=True)
+
                 with zipfile.ZipFile(file_path, "r") as zip_ref:
-                    zip_contents = zip_ref.namelist()
-                    print(f"ZIP contents: {zip_contents}")
                     zip_ref.extractall(extract_folder)
 
-                # Walk through all subdirectories to find video files
+                # Process video files from ZIP
                 video_extensions = (".mp4", ".avi", ".mov", ".mkv", ".webm")
                 for root, _, files in os.walk(extract_folder):
                     for file in files:
                         if file.lower().endswith(video_extensions):
-                            full_path = os.path.join(root, file)
-                            extracted_files.append((file, full_path))
-                
-                print(f"Found video files: {[f[0] for f in extracted_files]}")
+                            original_path = os.path.join(root, file)
+                            new_filename = f"{uuid.uuid4()}{os.path.splitext(file)[1]}"
+                            new_path = os.path.join(UPLOAD_DIR, new_filename)
+                            
+                            shutil.move(original_path, new_path)
+                            uploaded_files.append(new_filename)
 
-                # Move extracted video files to the main uploads folder
-                processed_files = []
-                for original_name, full_path in extracted_files:
-                    try:
-                        new_filename = f"{uuid.uuid4()}{os.path.splitext(original_name)[1]}"
-                        new_path = os.path.join(UPLOAD_DIR, new_filename)
-                        shutil.move(full_path, new_path)  # Using shutil.move instead of os.rename
-                        processed_files.append((original_name, new_filename))
-                        print(f"Moved {original_name} to {new_filename}")
-                    except Exception as e:
-                        print(f"Error moving file {original_name}: {str(e)}")
-                        continue
+                            video_metadata = {
+                                "filename": new_filename,
+                                "metadata": {
+                                    "title": f"{title} - {os.path.splitext(file)[0]}",
+                                    "description": description,
+                                    "tags": tags_list,
+                                    "school": school,
+                                }
+                            }
+                            videos_to_save.append(video_metadata)
 
-                extracted_files = processed_files
+                # Cleanup ZIP and extraction folder
+                os.remove(file_path)
+                shutil.rmtree(extract_folder)
 
             except zipfile.BadZipFile:
-                print("Bad ZIP file received")
                 raise HTTPException(status_code=400, detail="Invalid ZIP file")
-            finally:
-                # Cleanup
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-                if os.path.exists(extract_folder):
-                    shutil.rmtree(extract_folder, ignore_errors=True)
-
-        # Generate metadata for uploaded or extracted files
-        tags_list = [tag.strip() for tag in tags.split(',') if tag.strip()]
-        videos = load_metadata()
-
-        if file_extension == ".zip" and extracted_files:
-            # Create metadata entries for each extracted video
-            for original_name, new_filename in extracted_files:
-                video_id = str(uuid.uuid4())
-                video_metadata = {
-                    "id": video_id,
-                    "filename": new_filename,
-                    "metadata": {
-                        "title": f"{title} - {os.path.splitext(original_name)[0]}",
-                        "description": description,
-                        "tags": tags_list,
-                        "school": school,
-                    }
-                }
-                videos.append(video_metadata)
-                print(f"Added metadata for {original_name} as {new_filename}")
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Error processing ZIP: {str(e)}")
         else:
-            # Regular video upload metadata
-            video_id = str(uuid.uuid4())
-            video_metadata = {
-                "id": video_id,
+            # Single video file
+            uploaded_files.append(unique_filename)
+            videos_to_save.append({
                 "filename": unique_filename,
                 "metadata": {
                     "title": title,
@@ -128,37 +104,62 @@ async def upload_video(
                     "tags": tags_list,
                     "school": school,
                 }
-            }
-            videos.append(video_metadata)
+            })
 
-        save_metadata(videos)
+        # Save to MongoDB and collect responses
+        saved_videos = []
+        for video_metadata in videos_to_save:
+            result = await db.videos.insert_one(video_metadata)
+            video_metadata["_id"] = str(result.inserted_id)
+            saved_videos.append(video_metadata)
 
         return {
+            "status": "success",
             "message": "Upload successful",
-            "uploaded_files": [f[1] for f in extracted_files] if extracted_files else [unique_filename]
+            "uploaded_files": uploaded_files,
+            "videos": saved_videos
         }
 
     except Exception as e:
-        print(f"Error processing upload: {str(e)}")
+        print(f"Upload error: {str(e)}")
         # Cleanup on error
-        if file_extension == ".zip":
-            shutil.rmtree(extract_folder, ignore_errors=True)
         if os.path.exists(file_path):
             os.remove(file_path)
+        if 'extract_folder' in locals() and os.path.exists(extract_folder):
+            shutil.rmtree(extract_folder)
         raise HTTPException(status_code=500, detail=str(e))
-    
 
 @router.post("/delete")
-async def delete_video(
-    video_id: str = Form(...)
-):
-    videos = load_metadata()
-    videos = [video for video in videos if video["id"] != video_id]
-    save_metadata(videos)
-    return {"message": "Video deleted successfully"}
+async def delete_video(video_id: str = Form(...)):
+    try:
+        # Delete from MongoDB
+        result = await db.videos.delete_one({"_id": ObjectId(video_id)})
+        
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Video not found")
+        
+        # Also delete the file from uploads directory
+        videos = await db.videos.find_one({"_id": ObjectId(video_id)})
+        if videos and "filename" in videos:
+            file_path = os.path.join(UPLOAD_DIR, videos["filename"])
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        
+        return {"message": "Video deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("")
 async def get_videos():
-    videos = load_metadata()
-    print("Loaded videos:", videos)
-    return videos if videos else []
+    try:
+        # Fetch videos from MongoDB
+        cursor = db.videos.find()
+        videos = []
+        async for doc in cursor:
+            # Convert ObjectId to string
+            doc["_id"] = str(doc["_id"])
+            videos.append(doc)
+        return videos
+    except Exception as e:
+        print(f"Error fetching videos: {str(e)}")
+        return []

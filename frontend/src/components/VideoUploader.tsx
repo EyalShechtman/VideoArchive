@@ -76,12 +76,12 @@ export default function VideoUploader() {
         body: formData,
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Upload failed');
+        throw new Error(result.detail || 'Upload failed');
       }
 
-      const result = await response.json();
       console.log('Upload successful:', result);
       
       // Clear the form
@@ -93,8 +93,8 @@ export default function VideoUploader() {
         school: ''
       });
       
-      // Redirect to home page
-      router.push('/');
+      // Redirect to videos page
+      router.push('/videos');
     } catch (error) {
       console.error('Error uploading video:', error);
       alert(error instanceof Error ? error.message : 'Failed to upload video. Please try again.');
@@ -180,7 +180,7 @@ export default function VideoUploader() {
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             value={metadata.school}
             onChange={(e) => setMetadata({ ...metadata, school: e.target.value })}
-            placeholder="nature, documentary, tutorial"
+            placeholder="Enter school name ie. 'Columbia University'"
           />
         </div>
 

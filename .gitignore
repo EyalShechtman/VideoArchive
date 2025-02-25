@@ -40,3 +40,6 @@ next-env.d.ts
 backend/uploads/
 
 *.json
+
+# backend env
+backend/.env

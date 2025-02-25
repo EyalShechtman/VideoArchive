@@ -2,8 +2,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.routers import videos, auth
+from app.database import test_connection
 
 app = FastAPI()
+
+@app.on_event("startup")
+async def startup_event():
+    await test_connection()
 
 # Configure CORS
 app.add_middleware(
